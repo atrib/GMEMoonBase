@@ -1,75 +1,71 @@
 #!/usr/bin/env python3
-import requests
+import datetime
 import pandas as pd
 import plotly.express as px
+import requests
+import time
 
 def get_pushshift_data(data_type, **kwargs):
-    """
+    '''
     Gets data from the pushshift api.
  
     data_type can be 'comment' or 'submission'
     The rest of the args are interpreted as payload.
  
     Read more: https://github.com/pushshift/api
-    """
+    '''
  
-    base_url = f"https://api.pushshift.io/reddit/search/{data_type}/"
+    base_url = f'https://api.pushshift.io/reddit/search/{data_type}/'
     payload = kwargs
-    request = requests.get(base_url, params=payload)
-    return request.json()
 
-data_type="comment"     # give me comments, use "submission" to publish something
-query="python"          # Add your query
-duration="30d"          # Select the timeframe. Epoch value or Integer + "s,m,h,d" (i.e. "second", "minute", "hour", "day")
-size=1000               # maximum 1000 comments
-sort_type="score"       # Sort by score (Accepted: "score", "num_comments", "created_utc")
-sort="desc"             # sort descending
-aggs="subreddit"        #"author", "link_id", "created_utc", "subreddit"
+    success = False
+    while not success:
+        try:
+            request = requests.get(base_url, params=payload)
+            reply = request.json()
+            success = True
+        except:
+            success = False
 
-# Call the API
-data = get_pushshift_data(data_type=data_type,
-                          q=query,
-                          after="7d",
-                          size=100,
-                          sort_type=sort_type,
-                          sort=sort).get("data")
- 
-# Select the columns you care about
-df = pd.DataFrame.from_records(data)[["author", "subreddit", "score", "body", "permalink"]]
- 
-# Keep the first 400 characters
-df['body'] = df['body'].str[0:400] + "..."
- 
-# Append the string to all the permalink entries so that we have a link to the comment
-df['permalink'] = "https://reddit.com" + df['permalink'].astype(str)
- 
- 
-# Create a function to make the link to be clickable and style the last column
-def make_clickable(val):
-    """ Makes a pandas column clickable by wrapping it in some html.
-    """
-    return '<a href="{}">Link</a>'.format(val,val)
+    return reply
 
+def getDateAndTime(seconds=None):
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(seconds))
 
-df.style.format({'permalink': make_clickable})
+data_type='submission'          # give me comments, use 'submission' to publish something
+query='python'               # Add your query
+size=400                    # maximum 1000 comments
+sort_type='created_utc'      # Sort by score (Accepted: 'score', 'num_comments', 'created_utc')
+sort='desc'                  # sort descending
+subreddit='Wallstreetbets'   # From particular subreddit
 
-datax = get_pushshift_data(data_type=data_type,
-                          q=query,
-                          after=duration,
-                          size=size,
-                          aggs=aggs)                   
+before_utc = int(time.time())
+dt = datetime.datetime(2021, 1, 1)
+after_utc = dt.replace(tzinfo=datetime.timezone.utc).timestamp()
 
-print(datax)
+while before_utc > after_utc:
+    # Call the API
+    data = get_pushshift_data(data_type=data_type,
+                            size=size,
+                            sort_type=sort_type,
+                            sort=sort,
+                            before=before_utc,
+                            subreddit=subreddit).get('data')
+    
+    # Interesting details
+    props = ['author', 'id', 'upvote_ratio', 'score', 'title', 'created_utc', 'permalink']
 
-data = datax.get("aggs").get(aggs)                        
-df = pd.DataFrame.from_records(data)[0:10]
-df
-
-px.bar(df,              # our dataframe
-       x="author",         # x will be the 'key' column of the dataframe
-       y="doc_count",   # y will be the 'doc_count' column of the dataframe
-       title=f'Subreddits with most activity - comments with "{query}" in the last "{duration}"',
-       labels={"doc_count": "# comments","key": "Subreddits"}, # the axis names
-       color_discrete_sequence=["#1f77b4"], # the colors used
-       height=500,
-       width=800)
+    # Select the columns you care about
+    df = pd.DataFrame.from_records(data)[props]
+    
+    # Append the string to all the permalink entries so that we have a link to the comment
+    df['permalink'] = 'https://reddit.com' + df['permalink'].astype(str)
+    
+    for index, row in df.iterrows():
+        utc = row['created_utc']
+        for prop in props:
+            if prop == 'created_utc':
+                print('{}: {} {}'.format(prop, row[prop], getDateAndTime(row[prop])))
+            else:
+                print('{}: {}'.format(prop, row[prop]))
+        before_utc = utc
