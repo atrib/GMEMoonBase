@@ -70,14 +70,6 @@ def get_data(after_utc, before_utc, data_filter):
             last_post = data[-1]
             print('{}: {} {}'.format(last_post['id'], getDateAndTime(last_post['created_utc']), last_post['title']))
             print('{}/{} posts'.format(saved_post_count, total_post_count))
-        # for index, row in df.iterrows():
-        #     utc = row['created_utc']
-        #     for prop in props:
-        #         if prop == 'created_utc':
-        #             print('{}: {} {}'.format(prop, row[prop], getDateAndTime(row[prop])))
-        #         else:
-        #             print('{}: {}'.format(prop, row[prop]))
-        #     before_utc = utc
 
     return net_data
 
