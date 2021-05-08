@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pandas as pd
+import pickle
 import networkx as nx
 import matplotlib.pyplot as plt
 from collections import Counter
@@ -79,6 +80,8 @@ def main(file='post_comments'):
     results['hubs'] = Counter(h).most_common(20)
     print('finished hits', results['authories'], results['hubs'])
     
-    
+    with open('results_network.pkl', 'wb') as outfile:
+        pickle.dump(results, outfile)
+        
 if __name__ == "__main__":
     main()
